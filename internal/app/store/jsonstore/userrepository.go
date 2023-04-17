@@ -12,10 +12,9 @@ type UserRepository struct {
 	users map[string]*model.User
 }
 
-//
 func (r *UserRepository) Create(u *model.User) error {
 
-	if err := u.Vaidate(); err != nil {
+	if err := u.Validate(); err != nil {
 		return err
 	}
 
@@ -37,8 +36,15 @@ func (r *UserRepository) Create(u *model.User) error {
 	return nil
 }
 
-func (r *UserRepository) Find(id int) (*model.User, error) {
-	u, ok := r.users[strconv.Itoa(id)]
+func (r *UserRepository) SearchUsers() *map[string]*model.User {
+
+	r.store.Open()
+	return &r.users
+}
+
+func (r *UserRepository) Get(id string) (*model.User, error) {
+	r.store.Open()
+	u, ok := r.users[id]
 	if !ok {
 		return nil, store.ErrRecordNotFound
 	}
@@ -46,19 +52,30 @@ func (r *UserRepository) Find(id int) (*model.User, error) {
 	return u, nil
 }
 
-func (r *UserRepository) Delete(u *model.User) error {
+func (r *UserRepository) Delete(id string) error {
+	r.store.Open()
+	u, ok := r.users[id]
+	if !ok {
+		return store.ErrRecordNotFound
+	}
 	// Access rights should be checked here
 	delete(r.users, strconv.Itoa(u.ID))
+	r.store.Save()
 	return nil
 }
 
-func (r *UserRepository) Update(id int, display_name string) error {
-	u, ok := r.users[strconv.Itoa(id)]
+func (r *UserRepository) Update(id string, display_name string) error {
+	r.store.Open()
+	u, ok := r.users[id]
 	if !ok {
 		return store.ErrRecordNotFound
 	}
 
 	u.DisplayName = display_name
+
+	r.users[id] = u
+
+	r.store.Save()
 
 	return nil
 }

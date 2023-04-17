@@ -6,8 +6,8 @@ import (
 
 type UserRepository interface {
 	Create(*model.User) error
-	//Delete(*model.User) error
-	//Get()
-	//Find(id int) (*model.User, error)
-	//Update(id int, display_name string) error
+	SearchUsers() *map[string]*model.User
+	Get(id string) (*model.User, error)
+	Update(id string, display_name string) error
+	Delete(id string) error
 }

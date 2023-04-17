@@ -13,11 +13,11 @@ type User struct {
 	CreatedAt         time.Time `json:"created_at"`
 	DisplayName       string    `json:"display_name"`
 	Email             string    `json:"email"`
-	Password          string    `json:"password,omitempty"`
-	EncryptedPassword string    `json:"-"`
+	Password          string    `json:"-"`
+	EncryptedPassword string    `json:"encrypted_password,omitempty"`
 }
 
-func (u *User) Vaidate() error {
+func (u *User) Validate() error {
 	return validation.ValidateStruct(
 		u,
 		validation.Field(&u.Email, validation.Required, is.Email),

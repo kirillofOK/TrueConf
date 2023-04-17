@@ -64,7 +64,7 @@ func (s *server) configureRouter() {
 	v1 := api.PathPrefix("/v1").Subrouter()
 
 	users := v1.PathPrefix("/users").Subrouter()
-	users.HandleFunc("/", s.handleSearchUser()).Methods("GET")
+	users.HandleFunc("/", s.handleSearchUsers()).Methods("GET")
 	users.HandleFunc("/", s.handleCreateUser()).Methods("POST")
 
 	id := users.PathPrefix("/{id}").Subrouter()
@@ -98,7 +98,7 @@ func (s *server) logRequest(next http.Handler) http.Handler {
 			"remote_addr": r.RemoteAddr,
 			"request_id":  r.Context().Value(ctxKeyRequestID),
 		})
-		logger.Info("started %s %s", r.Method, r.RequestURI)
+		logger.Infof("started %s %s", r.Method, r.RequestURI)
 
 		start := time.Now()
 		rw := &responseWriter{w, http.StatusOK}
@@ -138,12 +138,9 @@ func (s *server) realIPRequest(next http.Handler) http.Handler {
 	})
 }
 
-// Need to complite
-func (s *server) handleSearchUser() http.HandlerFunc {
-
+func (s *server) handleSearchUsers() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-
-		s.respond(w, r, http.StatusOK, nil)
+		s.respond(w, r, http.StatusOK, s.store.User().SearchUsers())
 	}
 }
 
@@ -161,6 +158,7 @@ func (s *server) handleCreateUser() http.HandlerFunc {
 		}
 
 		u := &model.User{
+			CreatedAt:   time.Now(),
 			DisplayName: req.DisplayName,
 			Email:       req.Email,
 			Password:    req.Password,
@@ -176,7 +174,14 @@ func (s *server) handleCreateUser() http.HandlerFunc {
 
 func (s *server) handleGetUser() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		s.respond(w, r, http.StatusOK, r.Context().Value(ctxKeyUser).(*model.User))
+		parmas := mux.Vars(r)
+		id := parmas["id"]
+		u, err := s.store.User().Get(id)
+		if err != nil {
+			s.error(w, r, http.StatusNotFound, err)
+		}
+
+		s.respond(w, r, http.StatusOK, u)
 	}
 }
 
@@ -191,14 +196,30 @@ func (s *server) handleUpdateUser() http.HandlerFunc {
 		if err := json.NewDecoder(r.Body).Decode(req); err != nil {
 			s.error(w, r, http.StatusBadRequest, err)
 		}
+		parmas := mux.Vars(r)
+		id := parmas["id"]
+		err := s.store.User().Update(id, req.DisplayName)
+		if err != nil {
+			s.error(w, r, http.StatusBadRequest, err)
+		}
 
-		s.respond(w, r, http.StatusOK, nil)
+		s.respond(w, r, http.StatusOK, req.DisplayName)
 	}
 }
 
 // Need to complite
 func (s *server) handleDeleteUser() http.HandlerFunc {
+	type request struct {
+		Email    string `json:"email"`
+		Password string `json:"password,omitempty"`
+	}
 	return func(w http.ResponseWriter, r *http.Request) {
+		parmas := mux.Vars(r)
+		id := parmas["id"]
+		err := s.store.User().Delete(id)
+		if err != nil {
+			s.error(w, r, http.StatusBadRequest, err)
+		}
 		s.respond(w, r, http.StatusOK, nil)
 	}
 }
@@ -213,6 +234,10 @@ func (s *server) handleHello() http.HandlerFunc {
 
 func (s *server) error(w http.ResponseWriter, r *http.Request, code int, err error) {
 	s.respond(w, r, code, map[string]string{"error": err.Error()})
+}
+
+func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	s.router.ServeHTTP(w, r)
 }
 
 func (s *server) respond(w http.ResponseWriter, r *http.Request, code int, data interface{}) {

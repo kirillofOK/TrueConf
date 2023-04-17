@@ -12,6 +12,6 @@ func NewConfig() *Config {
 	return &Config{
 		BindAddr: "8080",
 		LogLevel: "debug",
-		StoreURL: "users_json",
+		StoreURL: "users.json",
 	}
 }
